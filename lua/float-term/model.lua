@@ -78,7 +78,9 @@ end
 function M:remove_term(term)
   local term_ind = M:get_term_index(term)
   local term = table.remove(M.term_list,term_ind)
-  api.nvim_buf_delete(term.buffer, {})
+  if api.nvim_buf_is_valid(term.buffer) then
+    api.nvim_buf_delete(term.buffer, {force = true})
+  end
   local remaining = table.getn(M.term_list)
   if term == M.current_term and remaining > 0 then
     if term_ind > 1 then

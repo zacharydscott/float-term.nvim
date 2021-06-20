@@ -16,15 +16,19 @@ function M:open_float_windows(
   -- show terminal tab
   if not api.nvim_buf_is_valid(tab_buffer) then
     tab_buffer = api.nvim_create_buf(true, true)
-  end
-    tab_window = api.nvim_open_win(tab_buffer,0,tab_opts)
     api.nvim_buf_set_name(tab_buffer,tab_buffer..'.TERM_BUF')
+  end
+  if not (tab_window and api.nvim_win_is_valid(tab_window)) then
+    tab_window = api.nvim_open_win(tab_buffer,0,tab_opts)
+  end
 
   -- show terminal
   if not api.nvim_buf_is_valid(term_dummy_buf) then
     term_dummy_buf = api.nvim_create_buf(true, true)
   end
-  term_window = api.nvim_open_win(term_dummy_buf,0,term_opts)
+  if not (term_window and api.nvim_win_is_valid(term_window)) then
+    term_window = api.nvim_open_win(term_dummy_buf,0,term_opts)
+  end
 end
 
 function M:close_float_windows()
@@ -34,15 +38,16 @@ function M:close_float_windows()
   if api.nvim_win_is_valid(tab_window) then
     api.nvim_win_hide(tab_window)
   end
-  if save_win and api.nvim_win_is_valid(save_win) then
-    api.nvim_set_current_win(save_win)
-  end
   term_window = -1
   tab_window = -1
 end
 
 function M:is_term_tab_open()
   return api.nvim_win_is_valid(term_window) and api.nvim_win_is_valid(tab_window)
+end
+
+function M:is_term_tab_partially_open()
+  return api.nvim_win_is_valid(term_window) or api.nvim_win_is_valid(tab_window)
 end
 
 function M:render_tab_buffer()
@@ -88,12 +93,20 @@ function M:show_terminal(term,cmd,enter)
     api.nvim_set_current_win(term_window)
     if api.nvim_win_is_valid(term_window) then
       api.nvim_win_set_buf(term_window,term.buffer)
-      api.nvim_exec([[au BufUnload <buffer> lua require('float-term'):handle_term_close()]],true)
-      fn.termopen(cmd)
+      -- api.nvim_exec([[au BufWipeout <buffer> lua require('float-term'):handle_term_close()]],true)
+      if cmd then
+        fn.termopen(cmd)
+      else
+        api.nvim_exec([[terminal]],true)
+      end
       api.nvim_buf_set_name(term.buffer,term.buffer..'.TERM_BUF')
       api.nvim_win_set_buf(last_window,term.buffer)
     else
-      fn.termopen(cmd)
+      if cmd then
+        fn.termopen(cmd)
+      else
+        api.nvim_exec([[terminal]],true)
+      end
     end
   end
   if enter then
