@@ -69,6 +69,11 @@ function M:render_tab_buffer()
     1,
     string.len(tab_string or '') -
     string.len(to.separation_marker or ''))
+  -- add extra spaces for highlighting
+  local space_len = api.nvim_get_option('columns') - string.len(tab_string)
+  for i=1,space_len do
+    tab_string = tab_string..' '
+  end
   api.nvim_buf_set_lines(tab_buffer,0,1,false,{tab_string})
   api.nvim_buf_add_highlight(tab_buffer,-1,'FloatTermDefaultTab',0,0,select_start)
   api.nvim_buf_add_highlight(tab_buffer,-1,'FloatTermSelectTab',0,select_start, select_end)

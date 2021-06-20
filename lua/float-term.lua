@@ -8,6 +8,7 @@ api.nvim_exec([[hi link FloatTermDefaultTab Normal |hi link FloatTermSelectTab C
 local float_terminal_options = {
   margin = 5,
   term_cmd = 'cmd.exe',
+  border = {'┌','─','┐','│','┘','─','└','│'},
   tab = {
     title = 'Float Terms: ',
     selected_marker = '',
@@ -61,6 +62,9 @@ function M:float_open()
   -- initialize window parameters
   local width = api.nvim_get_option('columns')
   local height = 40
+  local b = float_terminal_options.border
+  local term_border = {'','','',b[4],b[5],b[6],b[7],b[8]}
+  local term_border = {b[1],b[2],b[3],b[4],'','','',b[8]}
   local term_opts = {
     relative = 'editor',
     width = width - 2*float_terminal_options.margin,
@@ -96,7 +100,7 @@ function M:switch_terminal(name)
   ui:show_terminal(term, float_terminal_options.term_cmd, float_terminal_options.auto_enter)
 end
 
-function M:add_terminal(name)
+function M:add_term(name)
   if not name then
     local len = table.getn(model.term_list)
     name = float_terminal_options.tab.auto_tab(len + 1)
