@@ -7,8 +7,9 @@ local M = {}
 api.nvim_exec([[hi link FloatTermDefaultTab Normal |hi link FloatTermSelectTab Cursor]],true)
 local default_options = {
   margin = 5,
+  reverse_search = true,
   term_cmd = nil,
-  border = {'┌','─','┐','│','┘','─','└','│'},
+  border = {'╭','─','╮','│','┘','─','╰','│'},
   tab = {
     title = 'Float Terms: ',
     selected_marker = '',
@@ -19,19 +20,25 @@ local default_options = {
   auto_enter = true,
 }
 
-local float_terminal_options = default_options
+-- float term options
+local fto = default_options
 
 local save_win
 
 function M:setup(config)
-  float_terminal_options = {}
+  fto = {}
   for n,v in pairs(default_options) do
-    float_terminal_options[n] = v
+    fto[n] = v
   end
   for n,v in pairs(config) do
-    float_terminal_options[n] = v
+    fto[n] = v
   end
-  local tab = float_terminal_options.tab
+  if config.tab then
+    for n,v in pairs(default_options.tab) do
+      fto.tab[n] = config.tab[n] or v
+    end
+  end
+  local tab = fto.tab
   -- try to keep the default space and marker the same if none is rovided
   if config.tab and confg.tab.selected_marker and not confg.tab.default_marker then
     local def_marker = ''
@@ -42,13 +49,13 @@ function M:setup(config)
     end
     tab.default_marker = def_marker
   end
-  if not float_terminal_options.term_cmd and fn.has('win32') == 1 then
-    float_terminal_options.term_cmd = 'cmd.exe'
+  if not fto.term_cmd and fn.has('win32') == 1 then
+    fto.term_cmd = 'cmd.exe'
   end
   tab.default_marker = tab.default_marker or ''
   tab.selected_marker = tab.selected_marker or ''
   tab.title = tab.title or ''
-  model.tab_options = float_terminal_options.tab
+  model.tab_options = fto.tab
 end
 
 function M:float_toggle()
@@ -71,53 +78,53 @@ function M:float_open()
   -- initialize window parameters
   local width = api.nvim_get_option('columns')
   local height = 40
-  local b = float_terminal_options.border
+  local b = fto.border
   local term_border = {'','','',b[4],b[5],b[6],b[7],b[8]}
   local term_border = {b[1],b[2],b[3],b[4],'','','',b[8]}
   local term_opts = {
     relative = 'editor',
-    width = width - 2*float_terminal_options.margin,
-    height = height - 2*float_terminal_options.margin,
-    col = float_terminal_options.margin,
-    row = float_terminal_options.margin + 1,
+    width = width - 2*fto.margin,
+    height = height - 2*fto.margin,
+    col = fto.margin,
+    row = fto.margin + 1,
     border = {'','','','│','┘','─','└','│'},
     style = 'minimal'
   }
   local tab_opts = {
     relative = 'editor',
-    width = width - 2*float_terminal_options.margin,
+    width = width - 2*fto.margin,
     height = 1,
-    col = float_terminal_options.margin,
-    row = float_terminal_options.margin - 3,
+    col = fto.margin,
+    row = fto.margin - 3,
     -- boarder = 'single',
     border= {'┌','─','┐','│','','','','│'},
     style = 'minimal'
   }
   ui:open_float_windows(tab_opts,term_opts)
-  local def_term_name = float_terminal_options.default_term_name or
-  float_terminal_options.tab.auto_tab(1)
+  local def_term_name = fto.default_term_name or
+  fto.tab.auto_tab(1)
   term = model:get_set_default(def_term_name)
-  ui:show_terminal(term, float_terminal_options.term_cmd, float_terminal_options.auto_enter)
+  ui:show_terminal(term, fto.term_cmd, fto.auto_enter,fto.reverse_search)
 end
 
-function M:switch_terminal(name)
+function M:switch_term(name)
   local term = model:find_terminal_by_name(name)
   if not term then
-    print('Terminal "'..name..'" already exists.')
+    print('Terminal "'..name..'" dose not exists.')
     return
   end
-  ui:show_terminal(term, float_terminal_options.term_cmd, float_terminal_options.auto_enter)
+  ui:show_terminal(term, fto.term_cmd, fto.auto_enter,fto.reverse_search)
 end
 
 function M:add_term(name)
   if model:find_terminal_by_name(name) then
     print('Terminal "'..name..'" already exists.')
   end
-  if not name then
+  if not name or name == '' then
     local len = 0
     repeat
       len = len + 1
-      name = float_terminal_options.tab.auto_tab(len)
+      name = fto.tab.auto_tab(len)
     until(not model:find_terminal_by_name(name))
   end
   local new_term = model:register_terminal(name)
@@ -125,7 +132,7 @@ function M:add_term(name)
     return
   end
   model.current_term = new_term
-  ui:show_terminal(new_term,float_terminal_options.term_cmd, float_terminal_options.auto_enter)
+  ui:show_terminal(new_term,fto.term_cmd, fto.auto_enter,fto.reverse_search)
 end
 
 local function rename_term_base(term, new_name)
@@ -141,6 +148,10 @@ local function rename_term_base(term, new_name)
 end
 
 function M:rename_term(term_name, new_name)
+  if not term_name or term_name == 0 then
+    M:rename_current_term(new_name)
+    return
+  end
   term = model:find_terminal_by_name(term_name)
   if term then
     rename_term_base(term,new_name)
@@ -157,29 +168,34 @@ function M:rename_current_term(new_name)
   end
 end
 
-local function close_term_base(term)
+local function remove_term_base(term)
   model:remove_term(term)
-  if ui:is_term_tab_partially_open() then
-    if table.getn(model.term_list) > 0 then
-      M:float_open()
-    else
-      M:float_close()
-    end
+  if ui:is_term_tab_open() and model.current_term then
+    ui:show_terminal(model.current_term,fto.term_cmd,fto.auto_enter,fto.reverse_search)
+  else
+    M:float_close()
+  end
+  if api.nvim_buf_is_valid(term.buffer) then
+    api.nvim_buf_delete(term.buffer, {force = true})
   end
 end
 
-function M:close_term(name)
+function M:remove_current_term()
+  if model.current_term then
+    remove_term_base(model.current_term)
+  end
+end
+
+function M:remove_term(name)
+  if not name or name == '' then
+    M:remove_current_term()
+    return
+  end
   local term = model:find_terminal_by_name(name)
   if term then
-    close_term_base(term)
+    remove_term_base(term)
   else
     print('No terminal "'..name..'" exists.')
-  end
-end
-
-function M:close_current_term()
-  if model.current_term then
-    close_term_base(model.current_term)
   end
 end
 
@@ -187,7 +203,7 @@ function M:cycle_term(rel_ind)
   local new_term = model:find_relative_term(rel_ind)
   if new_term then
     model.current_term = new_term
-    ui:show_terminal(new_term, float_terminal_options.term_cmd, float_terminal_options.auto_enter)
+    ui:show_terminal(new_term, fto.term_cmd, fto.auto_enter,fto.reverse_search)
   end
 end
 

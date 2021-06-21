@@ -61,8 +61,8 @@ function M:render_tab_buffer()
     if model.current_term.buffer == v.buffer then
       select_start = fn.len(tab_string)
       select_end = select_start +
-        fn.len(to.selected_marker) +
-        fn.len(v.name or '')
+      fn.len(to.selected_marker) +
+      fn.len(v.name or '')
       tab_string = tab_string..to.selected_marker
     else
       tab_string = tab_string..def_spacing
@@ -70,10 +70,10 @@ function M:render_tab_buffer()
     tab_string = tab_string..(v.name or '')..to.separation_marker
   end
   tab_string = string.sub(
-    tab_string,
-    1,
-    string.len(tab_string or '') -
-    string.len(to.separation_marker or ''))
+  tab_string,
+  1,
+  string.len(tab_string or '') -
+  string.len(to.separation_marker or ''))
   -- add extra spaces for highlighting
   local space_len = api.nvim_get_option('columns') - string.len(tab_string)
   for i=1,space_len do
@@ -85,29 +85,24 @@ function M:render_tab_buffer()
   api.nvim_buf_add_highlight(tab_buffer,-1,'FloatTermDefaultTab',0,select_end,-1)
 end
 
-function M:show_terminal(term,cmd,enter)
+function M:show_terminal(term,cmd,enter,reverse_search)
   api.nvim_win_set_buf(term_window,term.buffer)
   local buftype = api.nvim_buf_get_option(term.buffer,'buftype')
   if buftype ~= 'terminal' then
     local last_window = api.nvim_get_current_win()
     api.nvim_set_current_win(term_window)
-    if api.nvim_win_is_valid(term_window) then
-      api.nvim_win_set_buf(term_window,term.buffer)
-      -- api.nvim_exec([[au BufWipeout <buffer> lua require('float-term'):handle_term_close()]],true)
-      if cmd then
-        fn.termopen(cmd)
-      else
-        api.nvim_exec([[terminal]],true)
-      end
-      api.nvim_buf_set_name(term.buffer,term.buffer..'.TERM_BUF')
-      api.nvim_win_set_buf(last_window,term.buffer)
+    api.nvim_win_set_buf(term_window,term.buffer)
+    -- api.nvim_exec([[au BufWipeout <buffer> lua require('float-term'):handle_term_close()]],true)
+    if cmd then
+      fn.termopen(cmd)
     else
-      if cmd then
-        fn.termopen(cmd)
-      else
-        api.nvim_exec([[terminal]],true)
-      end
+      api.nvim_exec([[terminal]],true)
     end
+    if reverse_search then
+      api.nvim_exec([[nnoremap <buffer> / ?]],true)
+    end
+    api.nvim_buf_set_name(term.buffer,term.buffer..'.TERM_BUF')
+    api.nvim_win_set_buf(last_window,term.buffer)
   end
   if enter then
     api.nvim_exec(':normal! a', true)
