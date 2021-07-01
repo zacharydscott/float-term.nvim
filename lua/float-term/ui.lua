@@ -85,26 +85,33 @@ function M:render_tab_buffer()
   api.nvim_buf_add_highlight(tab_buffer,-1,'FloatTermDefaultTab',0,select_end,-1)
 end
 
-function M:show_terminal(term,cmd,enter,reverse_search)
+function M:show_terminal(term)
   api.nvim_win_set_buf(term_window,term.buffer)
   local buftype = api.nvim_buf_get_option(term.buffer,'buftype')
+  local buf = term.buffer
   if buftype ~= 'terminal' then
     local last_window = api.nvim_get_current_win()
     api.nvim_set_current_win(term_window)
-    api.nvim_win_set_buf(term_window,term.buffer)
+    api.nvim_win_set_buf(term_window,buf)
     -- api.nvim_exec([[au BufWipeout <buffer> lua require('float-term'):handle_term_close()]],true)
-    if cmd then
-      fn.termopen(cmd)
+    if _float_term_options.term_cmd then
+      fn.termopen(_float_term_options.term_cmd)
     else
       api.nvim_exec([[terminal]],true)
     end
-    if reverse_search then
+    if _float_term_options.reverse_search then
       api.nvim_exec([[nnoremap <buffer> / ?]],true)
     end
-    api.nvim_buf_set_name(term.buffer,term.buffer..'.TERM_BUF')
+    if _float_term_options.term_attach then
+      _float_term_options.term_attach()
+    end
+    api.nvim_buf_set_name(buf,term.buffer..'.TERM_BUF')
     api.nvim_win_set_buf(last_window,term.buffer)
+    if _float_term_options.auto_enter then
+      term.is_entered = true
+    end
   end
-  if enter then
+  if term.is_entered then
     api.nvim_exec(':normal! a', true)
   end
   M:render_tab_buffer()

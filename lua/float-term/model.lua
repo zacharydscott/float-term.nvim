@@ -28,12 +28,21 @@ function M:get_set_default(default_name)
   return M.current_term
 end
 
-function M:find_terminal_by_name(name)
+function M:find_term_by_name(name)
   if type(name) == number then
     name = tostring(number)
   end
   for _,term in ipairs(M.term_list) do
     if term.name == name then
+      return term
+    end
+  end
+  return nil
+end
+
+function M:find_term_by_buffer(buffer)
+  for _,term in ipairs(M.term_list) do
+    if term.buffer == buffer then
       return term
     end
   end
@@ -65,11 +74,12 @@ function M:clear_invalid_term_list()
 end
 
 function M:register_terminal(name)
-  if M:find_terminal_by_name(name) then
+  if M:find_term_by_name(name) then
     print('Terminal "'..name..'" has already been added')
     return nil
   end
   local buf = api.nvim_create_buf(true, true)
+  api.nvim_buf_set_option(buf,'modifiable',true)
   local new_term = { name = name, buffer = buf }
   table.insert(M.term_list, new_term)
   return new_term
